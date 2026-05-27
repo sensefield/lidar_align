@@ -38,26 +38,38 @@ int main(int argc, char** argv) {
     return EXIT_FAILURE;
   }
 
-  const bool transforms_from_csv =
-      node->declare_parameter<bool>("transforms_from_csv", false);
-  RCLCPP_INFO(node->get_logger(), "Loading transformation data...");
-  if (transforms_from_csv) {
+  const std::string odom_source =
+      node->declare_parameter<std::string>("odom_source", "tf");
+  RCLCPP_INFO(node->get_logger(), "Loading transformation data (source: %s)...",
+              odom_source.c_str());
+
+  bool odom_loaded = false;
+  if (odom_source == "tf") {
+    odom_loaded = loader.loadTformFromROSBag(input_bag_path, &odom);
+  } else if (odom_source == "pose_stamped") {
+    odom_loaded = loader.loadTformFromPoseStamped(input_bag_path, &odom);
+  } else if (odom_source == "csv") {
     const std::string input_csv_path =
         node->declare_parameter<std::string>("input_csv_path", "");
     if (input_csv_path.empty()) {
       RCLCPP_FATAL(node->get_logger(),
-                   "Could not find input_csv_path parameter, exiting.");
+                   "odom_source is 'csv' but input_csv_path is empty, exiting.");
       rclcpp::shutdown();
       return EXIT_FAILURE;
     }
-    if (!loader.loadTformFromMaplabCSV(input_csv_path, &odom)) {
-      RCLCPP_FATAL(node->get_logger(), "Error loading transforms from CSV.");
-      rclcpp::shutdown();
-      return EXIT_FAILURE;
-    }
-  } else if (!loader.loadTformFromROSBag(input_bag_path, &odom)) {
+    odom_loaded = loader.loadTformFromMaplabCSV(input_csv_path, &odom);
+  } else {
     RCLCPP_FATAL(node->get_logger(),
-                 "Error loading transforms from ROS 2 bag.");
+                 "Unknown odom_source '%s'. Must be 'tf', 'pose_stamped', or 'csv'.",
+                 odom_source.c_str());
+    rclcpp::shutdown();
+    return EXIT_FAILURE;
+  }
+
+  if (!odom_loaded) {
+    RCLCPP_FATAL(node->get_logger(),
+                 "Error loading transforms from source '%s'.",
+                 odom_source.c_str());
     rclcpp::shutdown();
     return EXIT_FAILURE;
   }

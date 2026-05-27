@@ -27,6 +27,9 @@ class Loader {
     std::string tf_parent_frame = "";
     std::string tf_child_frame = "";
     bool use_tf_static = false;
+
+    // PoseStamped topic (空文字の場合は全 PoseStamped トピックを対象)
+    std::string pose_topic = "";
   };
 
   explicit Loader(const Config& config);
@@ -39,6 +42,8 @@ class Loader {
                                 Lidar* lidar) const;
 
   bool loadTformFromROSBag(const std::string& bag_path, Odom* odom) const;
+
+  bool loadTformFromPoseStamped(const std::string& bag_path, Odom* odom) const;
 
   bool loadTformFromMaplabCSV(const std::string& csv_path, Odom* odom) const;
 

@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <utility>
 
+#include <geometry_msgs/msg/pose_stamped.hpp>
 #include <geometry_msgs/msg/transform_stamped.hpp>
 #include <pcl_conversions/pcl_conversions.h>
 #include <rclcpp/serialization.hpp>
@@ -71,6 +72,9 @@ Loader::Config Loader::getConfig(const std::shared_ptr<rclcpp::Node>& node) {
   config.use_tf_static =
       node->declare_parameter<bool>("use_tf_static", config.use_tf_static);
 
+  config.pose_topic =
+      node->declare_parameter<std::string>("pose_topic", config.pose_topic);
+
   RCLCPP_INFO(getLogger(), "Loader configuration:");
   RCLCPP_INFO(getLogger(), "  use_n_scans: %d", config.use_n_scans);
   RCLCPP_INFO(getLogger(), "  pointcloud_topic: '%s'", config.pointcloud_topic.c_str());
@@ -78,7 +82,8 @@ Loader::Config Loader::getConfig(const std::shared_ptr<rclcpp::Node>& node) {
   RCLCPP_INFO(getLogger(), "  tf_static_topic: '%s'", config.tf_static_topic.c_str());
   RCLCPP_INFO(getLogger(), "  tf_parent_frame: '%s'", config.tf_parent_frame.c_str());
   RCLCPP_INFO(getLogger(), "  tf_child_frame: '%s'", config.tf_child_frame.c_str());
-  RCLCPP_INFO(getLogger(), "  use_tf_static: %s", config.use_tf_static ? "true" : "false");    
+  RCLCPP_INFO(getLogger(), "  use_tf_static: %s", config.use_tf_static ? "true" : "false");
+  RCLCPP_INFO(getLogger(), "  pose_topic: '%s'", config.pose_topic.c_str());    
 
   return config;
 }
@@ -372,6 +377,73 @@ bool Loader::loadTformFromROSBag(const std::string& bag_path, Odom* odom) const 
     RCLCPP_ERROR(
         getLogger(),
         "Fewer than two odometry transforms were found in the bag.");
+    return false;
+  }
+
+  return true;
+}
+
+bool Loader::loadTformFromPoseStamped(const std::string& bag_path,
+                                      Odom* odom) const {
+  rosbag2_cpp::Reader reader;
+  try {
+    reader.open(bag_path);
+  } catch (const std::exception& e) {
+    RCLCPP_ERROR(getLogger(), "Opening rosbag2 input failed: %s", e.what());
+    return false;
+  }
+
+  std::unordered_map<std::string, std::string> topic_types;
+  for (const auto& topic : reader.get_all_topics_and_types()) {
+    topic_types[topic.name] = topic.type;
+  }
+
+  size_t tform_num = 0;
+  while (reader.has_next()) {
+    auto bag_message = reader.read_next();
+    const auto topic_it = topic_types.find(bag_message->topic_name);
+    if (topic_it == topic_types.end()) {
+      continue;
+    }
+
+    if (!config_.pose_topic.empty() &&
+        bag_message->topic_name != config_.pose_topic) {
+      continue;
+    }
+
+    if (topic_it->second != "geometry_msgs/msg/PoseStamped") {
+      continue;
+    }
+
+    geometry_msgs::msg::PoseStamped pose_msg;
+    if (!deserializeBagMessage(bag_message, &pose_msg)) {
+      return false;
+    }
+
+    const Timestamp stamp = stampToMicroseconds(pose_msg.header.stamp);
+
+    const Transform T(
+        Transform::Translation(
+            static_cast<float>(pose_msg.pose.position.x),
+            static_cast<float>(pose_msg.pose.position.y),
+            static_cast<float>(pose_msg.pose.position.z)),
+        Transform::Rotation(
+            static_cast<float>(pose_msg.pose.orientation.w),
+            static_cast<float>(pose_msg.pose.orientation.x),
+            static_cast<float>(pose_msg.pose.orientation.y),
+            static_cast<float>(pose_msg.pose.orientation.z)));
+
+    std::cout << " Loading transform: \e[1m" << tform_num++
+              << "\e[0m from rosbag2 (PoseStamped)" << '\r' << std::flush;
+
+    odom->addTransformData(stamp, T);
+  }
+  std::cout << std::endl;
+
+  if (odom->size() < 2) {
+    RCLCPP_ERROR(
+        getLogger(),
+        "Fewer than two odometry transforms were found from PoseStamped messages.");
     return false;
   }
 
