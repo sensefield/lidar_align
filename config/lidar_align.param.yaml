@@ -3,7 +3,7 @@ lidar_align:
     # Input
     input_bag_path: ""
     input_csv_path: ""
-    transforms_from_csv: false
+    odom_source: "odometry"  # "tf", "pose_stamped", "odometry", or "csv"
 
     # Pointcloud / TF selection
     pointcloud_topic: "/sensing/lidar/front/pointcloud_raw_ex"
@@ -12,6 +12,7 @@ lidar_align:
     tf_parent_frame: "map"
     tf_child_frame: "base_link"
     use_tf_static: false
+    pose_topic: "/localization/kinematic_state"  # pose topic (odom_source: "pose_stamped" or "odometry" の場合に使用)
 
     # Loader
     use_n_scans: 1000000

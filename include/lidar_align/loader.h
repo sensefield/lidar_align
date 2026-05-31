@@ -45,6 +45,8 @@ class Loader {
 
   bool loadTformFromPoseStamped(const std::string& bag_path, Odom* odom) const;
 
+  bool loadTformFromOdometry(const std::string& bag_path, Odom* odom) const;
+
   bool loadTformFromMaplabCSV(const std::string& csv_path, Odom* odom) const;
 
   static Config getConfig(const std::shared_ptr<rclcpp::Node>& node);

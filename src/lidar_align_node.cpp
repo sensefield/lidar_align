@@ -48,6 +48,8 @@ int main(int argc, char** argv) {
     odom_loaded = loader.loadTformFromROSBag(input_bag_path, &odom);
   } else if (odom_source == "pose_stamped") {
     odom_loaded = loader.loadTformFromPoseStamped(input_bag_path, &odom);
+  } else if (odom_source == "odometry") {
+    odom_loaded = loader.loadTformFromOdometry(input_bag_path, &odom);
   } else if (odom_source == "csv") {
     const std::string input_csv_path =
         node->declare_parameter<std::string>("input_csv_path", "");
@@ -60,7 +62,7 @@ int main(int argc, char** argv) {
     odom_loaded = loader.loadTformFromMaplabCSV(input_csv_path, &odom);
   } else {
     RCLCPP_FATAL(node->get_logger(),
-                 "Unknown odom_source '%s'. Must be 'tf', 'pose_stamped', or 'csv'.",
+                 "Unknown odom_source '%s'. Must be 'tf', 'pose_stamped', 'odometry', or 'csv'.",
                  odom_source.c_str());
     rclcpp::shutdown();
     return EXIT_FAILURE;

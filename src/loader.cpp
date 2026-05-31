@@ -9,6 +9,7 @@
 #include <utility>
 
 #include <geometry_msgs/msg/pose_stamped.hpp>
+#include <nav_msgs/msg/odometry.hpp>
 #include <geometry_msgs/msg/transform_stamped.hpp>
 #include <pcl_conversions/pcl_conversions.h>
 #include <rclcpp/serialization.hpp>
@@ -444,6 +445,73 @@ bool Loader::loadTformFromPoseStamped(const std::string& bag_path,
     RCLCPP_ERROR(
         getLogger(),
         "Fewer than two odometry transforms were found from PoseStamped messages.");
+    return false;
+  }
+
+  return true;
+}
+
+bool Loader::loadTformFromOdometry(const std::string& bag_path,
+                                    Odom* odom) const {
+  rosbag2_cpp::Reader reader;
+  try {
+    reader.open(bag_path);
+  } catch (const std::exception& e) {
+    RCLCPP_ERROR(getLogger(), "Opening rosbag2 input failed: %s", e.what());
+    return false;
+  }
+
+  std::unordered_map<std::string, std::string> topic_types;
+  for (const auto& topic : reader.get_all_topics_and_types()) {
+    topic_types[topic.name] = topic.type;
+  }
+
+  size_t tform_num = 0;
+  while (reader.has_next()) {
+    auto bag_message = reader.read_next();
+    const auto topic_it = topic_types.find(bag_message->topic_name);
+    if (topic_it == topic_types.end()) {
+      continue;
+    }
+
+    if (!config_.pose_topic.empty() &&
+        bag_message->topic_name != config_.pose_topic) {
+      continue;
+    }
+
+    if (topic_it->second != "nav_msgs/msg/Odometry") {
+      continue;
+    }
+
+    nav_msgs::msg::Odometry odom_msg;
+    if (!deserializeBagMessage(bag_message, &odom_msg)) {
+      return false;
+    }
+
+    const Timestamp stamp = stampToMicroseconds(odom_msg.header.stamp);
+
+    const Transform T(
+        Transform::Translation(
+            static_cast<float>(odom_msg.pose.pose.position.x),
+            static_cast<float>(odom_msg.pose.pose.position.y),
+            static_cast<float>(odom_msg.pose.pose.position.z)),
+        Transform::Rotation(
+            static_cast<float>(odom_msg.pose.pose.orientation.w),
+            static_cast<float>(odom_msg.pose.pose.orientation.x),
+            static_cast<float>(odom_msg.pose.pose.orientation.y),
+            static_cast<float>(odom_msg.pose.pose.orientation.z)));
+
+    std::cout << " Loading transform: \e[1m" << tform_num++
+              << "\e[0m from rosbag2 (Odometry)" << '\r' << std::flush;
+
+    odom->addTransformData(stamp, T);
+  }
+  std::cout << std::endl;
+
+  if (odom->size() < 2) {
+    RCLCPP_ERROR(
+        getLogger(),
+        "Fewer than two odometry transforms were found from Odometry messages.");
     return false;
   }
 
