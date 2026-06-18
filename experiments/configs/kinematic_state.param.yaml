@@ -1,0 +1,51 @@
+lidar_align:
+  ros__parameters:
+    # --- Input ---
+    input_bag_path: ""
+    input_csv_path: ""
+    odom_source: "odometry"  # nav_msgs/msg/Odometry を使用
+
+    # --- Topic / Frame ---
+    pointcloud_topic: "/sensing/lidar/front/pointcloud_raw_ex"
+    tf_topic: "/tf"
+    tf_static_topic: "/tf_static"
+    tf_parent_frame: "map"
+    tf_child_frame: "base_link"
+    use_tf_static: false
+    pose_topic: "/localization/kinematic_state"
+
+    # --- Loader ---
+    use_n_scans: 1000000
+
+    # --- LiDAR / Timing ---
+    motion_compensation: false
+    estimate_point_times: false
+    global_point_time_offset: 0.0
+    clockwise_lidar: false
+    lidar_rpm: 600.0
+    min_point_distance: 0.0
+    max_point_distance: 100.0
+    keep_points_ratio: 0.01
+    min_return_intensity: -1.0
+
+    # --- Optimizer ---
+    local: true
+    inital_guess: [6.697, 0.001, 1.234, -0.037, 0.001, -0.026]  # TF chain nominal design value (pose frame -> lidar frame)
+    max_time_offset: 0.10
+    angular_range: 0.35
+    translation_range: 1.50
+    max_evals: 400.0
+    xtol: 1.0e-4
+
+    # --- KNN / Cost ---
+    knn_batch_size: 500
+    knn_k: 10
+    global_knn_max_dist: 2.0
+    local_knn_max_dist: 0.5
+
+    # --- Time calibration ---
+    time_cal: true
+
+    # --- Output ---
+    output_pointcloud_path: "/tmp/lidar_align_results_ks/aligned_points.ply"
+    output_calibration_path: "/tmp/lidar_align_results_ks/calibration.txt"

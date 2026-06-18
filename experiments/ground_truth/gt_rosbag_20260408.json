@@ -1,0 +1,10 @@
+{
+  "x": 6.697,
+  "y": 0.001,
+  "z": 1.2341,
+  "rx": -0.037,
+  "ry": 0.0006,
+  "rz": -0.0262,
+  "time_offset_s": 0.0,
+  "note": "pose frame -> lidar frame, TF chain nominal design value"
+}
